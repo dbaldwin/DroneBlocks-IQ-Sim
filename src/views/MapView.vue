@@ -30,8 +30,8 @@
 import { defineComponent, ref, onMounted } from 'vue'
 import { Loader } from '@googlemaps/js-api-loader'
 
-const UUID = ''
-const map: google.maps.Map = ref([])
+const UUID = '486c5ec9137d478795f60674df991e97'
+const map = ref()
 
 export default defineComponent({
   data() {
@@ -41,7 +41,6 @@ export default defineComponent({
   },
 
   setup() {
-    console.log('setup called')
     const loader = new Loader({
       apiKey: 'AIzaSyA5dRMkbJ6t_cQqrCIuekJd4nJyVzEeSdY',
       version: 'weekly'
@@ -51,13 +50,12 @@ export default defineComponent({
       await loader
         .load()
         .then((google) => {
-          map.value = new google.maps.Map(document.getElementById('map'), {
+          map.value = new google.maps.Map(document.getElementById('map') as HTMLElement, {
             center: { lat: 32.8085988, lng: -97.1563347 },
             zoom: 12
           })
 
-          map.value.addListener('click', (event) => {
-            console.log(event.latLng.lng())
+          map.value.addListener('click', (event: any) => {
             new google.maps.Marker({
               position: { lat: event.latLng.lat(), lng: event.latLng.lng() },
               map: map.value
@@ -74,16 +72,12 @@ export default defineComponent({
 
   methods: {
     async armDrone() {
-      console.log('fetching data')
-
       const response = await fetch(`https://sim.intelligentquads.com/${this.uuid}/mavlink`)
-
       const json = await response.json()
-
       console.log(json)
     },
 
-    async getDroneLocation(element) {
+    async getDroneLocation() {
       const response = await fetch(
         `https://sim.intelligentquads.com/${this.uuid}/mavlink/vehicles/1/components/1/messages/GLOBAL_POSITION_INT`
       )
@@ -101,7 +95,7 @@ export default defineComponent({
 
       console.log(marker)
 
-      this.closeModal(element)
+      this.closeModal()
     },
 
     openModal() {
@@ -118,7 +112,7 @@ export default defineComponent({
 <style scoped>
 #map {
   width: 100%;
-  height: 600px;
+  height: 90vh;
   margin: 0;
   padding: 0;
 }
