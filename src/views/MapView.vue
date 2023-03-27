@@ -3,6 +3,7 @@
     <div id="map" class="map" />
     <button @click="openModal">UUID</button>
     <button @click="armDrone">Arm Drone</button>
+    <button @click="takeOff">Takeoff</button>
   </div>
 
   <div id="modal-js-example" class="modal">
@@ -13,7 +14,7 @@
         <p>Enter your sim UUID:</p>
         <div class="field is-grouped">
           <p class="control is-expanded">
-            <input class="input" type="text" placeholder="uuid" v-model="uuid" />
+            <input class="input" type="text" placeholder="uuid" ref="uuid" />
           </p>
           <p class="control">
             <a class="button is-info" @click="getDroneLocation"> Go </a>
@@ -30,17 +31,13 @@
 import { defineComponent, ref, onMounted } from 'vue'
 import { Loader } from '@googlemaps/js-api-loader'
 
-const UUID = '486c5ec9137d478795f60674df991e97'
-const map = ref()
-
 export default defineComponent({
-  data() {
-    return {
-      uuid: null
-    }
-  },
 
   setup() {
+
+    const map = ref<HTMLDivElement>()
+    const uuid = ref<HTMLInputElement>()
+
     const loader = new Loader({
       apiKey: 'AIzaSyA5dRMkbJ6t_cQqrCIuekJd4nJyVzEeSdY',
       version: 'weekly'
@@ -60,6 +57,7 @@ export default defineComponent({
               position: { lat: event.latLng.lat(), lng: event.latLng.lng() },
               map: map.value
             })
+            gotoLocation(event.latLng)
           })
         })
         .catch((error) => {
@@ -68,18 +66,35 @@ export default defineComponent({
 
       document.getElementById('modal-js-example')?.classList.add('is-active')
     })
-  },
 
-  methods: {
-    async armDrone() {
-      const response = await fetch(`https://sim.intelligentquads.com/${this.uuid}/mavlink`)
-      const json = await response.json()
-      console.log(json)
-    },
+    const armDrone = () => {
+      const response = fetch(`https://sim.intelligentquads.com/${uuid.value.value}/mavlink`, {
+        method: 'POST',
+        body:
+          JSON.stringify({
+            "header": {
+              "system_id": 255,
+              "component_id": 240,
+              "sequence": 0
+            },
+            "message": {
+              "type": "COMMAND_LONG",
+              "param1": 1.0,
+              "param2": 0.0, "param3": 0.0, "param4": 0.0, "param5": 0.0, "param6": 0.0, "param7": 0.0,
+              "command": {
+                "type": "MAV_CMD_COMPONENT_ARM_DISARM"
+              },
+              "target_system": 1,
+              "target_component": 1,
+              "confirmation": 1
+            }
+          })
+      })
+    }
 
-    async getDroneLocation() {
+    const getDroneLocation = async () => {
       const response = await fetch(
-        `https://sim.intelligentquads.com/${this.uuid}/mavlink/vehicles/1/components/1/messages/GLOBAL_POSITION_INT`
+        `https://sim.intelligentquads.com/${uuid.value.value}/mavlink/vehicles/1/components/1/messages/GLOBAL_POSITION_INT`
       )
       const json = await response.json()
 
@@ -93,11 +108,91 @@ export default defineComponent({
 
       map.value.setCenter({ lat: lat, lng: lon })
 
-      console.log(marker)
+      closeModal()
+    }
 
-      this.closeModal()
-    },
+    const gotoLocation = (latlng: google.maps.LatLng) => {
+      console.log(`going to location lat: ${latlng.lat() * 1e7}, lng: ${latlng.lng() * 1e7}`)
+      const response = fetch(`https://sim.intelligentquads.com/${uuid.value.value}/mavlink`, {
+        method: 'POST',
+        body:
+          JSON.stringify({
+            "header": {
+              "system_id": 255,
+              "component_id": 240,
+              "sequence": 0
+            },
+            "message": {
+              "type": "COMMAND_INT",
+              "target_system": 1,
+              "target_component": 1,
+              "frame": {
+                "type": "MAV_FRAME_GLOBAL"
+              },
+              "current": 0,
+              "autocontinue": 0,
+              "command": {
+                "type": "MAV_CMD_DO_REPOSITION"
+              },
+              "param1": -1.0,
+              "param2": 1,
+              "param3": 0.0,
+              "param4": 0.0,
+              "x": parseInt(latlng.lat() * 1e7),
+              "y": parseInt(latlng.lng() * 1e7),
+              "z": 591
+            }
+          })
+      })
+    }
 
+    const takeOff = () => {
+      const response = fetch(`https://sim.intelligentquads.com/${uuid.value.value}/mavlink`, {
+        method: 'POST',
+        body:
+          JSON.stringify({
+            "header": {
+              "system_id": 255,
+              "component_id": 240,
+              "sequence": 0
+            },
+            "message": {
+              "type": "COMMAND_LONG",
+              "param1": 0.0,
+              "param2": 0.0, "param3": 0.0, "param4": 0.0, "param5": 0.0, "param6": 0.0, "param7": 100.0,
+              "command": {
+                "type": "MAV_CMD_NAV_TAKEOFF"
+              },
+              "target_system": 1,
+              "target_component": 1,
+              "confirmation": 0
+            }
+          })
+      })
+    }
+
+    const openModal = () => {
+      document.getElementById('modal-js-example')?.classList.add('is-active')
+    }
+
+    const closeModal = () => {
+      document.getElementById('modal-js-example')?.classList.remove('is-active')
+    }
+
+
+    return {
+      map,
+      uuid,
+      armDrone,
+      takeOff,
+      getDroneLocation,
+      openModal,
+      closeModal
+    }
+
+  },
+
+  methods: {
     openModal() {
       document.getElementById('modal-js-example')?.classList.add('is-active')
     },
@@ -106,6 +201,7 @@ export default defineComponent({
       document.getElementById('modal-js-example')?.classList.remove('is-active')
     }
   }
+
 })
 </script>
 
